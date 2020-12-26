@@ -25,6 +25,7 @@ from api import views
 # Create a router and register our viewsets with it.
 router = SimpleRouter()
 router.register(r"users", views.UserViewSet)
+router.register(r"profiles", views.ProfileViewSet)
 router.register(r"photos", views.PhotoViewSet)
 
 

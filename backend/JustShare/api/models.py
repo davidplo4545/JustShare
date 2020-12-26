@@ -14,10 +14,28 @@ class CustomUser(AbstractUser):
 
     objects = CustomUserManager()
 
-    date_of_birth = models.DateField(blank=True, null=True)
-
     def __str__(self):
         return self.email
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        CustomUser, on_delete=models.CASCADE, related_name="profile"
+    )
+    first_name = models.CharField(max_length=120, blank=False)
+    last_name = models.CharField(max_length=120, blank=False)
+
+    def __str__(self):
+        return f"{self.first_name} {self.last_name}"
+
+    def friends(self):
+        return Friendship.objects.filter(Q(creator=self.user) | Q(friend=self.user))
+
+
+class Friendship(models.Model):
+    created = models.DateTimeField(auto_now_add=True, editable=False)
+    creator = models.ForeignKey(CustomUser, related_name="friendship_creater")
+    friend = models.ForeignKey(CustomUser, related_name="friend")
 
 
 def get_image_path(instance, filename):
@@ -30,7 +48,7 @@ class Photo(models.Model):
         CustomUser, on_delete=models.CASCADE, related_name="photos"
     )
     image = models.ImageField(upload_to=get_image_path)
-    upload_date = models.DateField(auto_now_add=True)
+    upload_date = models.DateField(auto_now_add=True, editable=False)
 
     # add creation_date later !
 

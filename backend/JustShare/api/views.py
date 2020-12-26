@@ -1,21 +1,34 @@
 import os
 from django.conf import settings
-from .models import CustomUser, Photo, Collection
+from .models import CustomUser, Photo, Collection, Profile
 from rest_framework import permissions
 from rest_framework.authentication import authenticate
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework import status, viewsets, serializers
 from rest_framework.response import Response
-from .serializers import UserSerializer, PhotoSerializer, CollectionSerializer
+from .serializers import (
+    UserSerializer,
+    ProfileSerializer,
+    PhotoSerializer,
+    CollectionSerializer,
+)
 
 # from .permissions import IsUserProfile, IsReaderOrReadOnly, IsEntryOwnerOrReadOnly
+
 
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all().order_by("date_joined")
     serializer_class = UserSerializer
     http_method_names = ["get"]
+
+    def post(self, request, format=None):
+        serializer = UserSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     # def get_permissions(self):
     #     """
@@ -27,6 +40,12 @@ class UserViewSet(viewsets.ModelViewSet):
     #     else:
     #         permission_classes = [permissions.IsAdminUser]
     #     return [permission() for permission in permission_classes]
+
+
+class ProfileViewSet(viewsets.ModelViewSet):
+    queryset = Profile.objects.all().order_by("user__date_joined")
+    serializer_class = ProfileSerializer
+    http_method_names = ["get"]
 
 
 class PhotoViewSet(viewsets.ModelViewSet):
