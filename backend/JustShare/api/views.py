@@ -1,8 +1,8 @@
 import os
 from django.conf import settings
-from .models import CustomUser, Photo, Collection, Profile
+from .models import CustomUser, Photo, Collection, UserProfile
 from rest_framework import permissions
-from rest_framework.authentication import authenticate
+from rest_framework.generics import CreateAPIView
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework import status, viewsets, serializers
@@ -10,12 +10,13 @@ from rest_framework.response import Response
 from .serializers import (
     UserSerializer,
     ProfileSerializer,
+    RegisterSerializer,
+    LoginSerializer,
     PhotoSerializer,
     CollectionSerializer,
 )
 
 # from .permissions import IsUserProfile, IsReaderOrReadOnly, IsEntryOwnerOrReadOnly
-
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -42,10 +43,69 @@ class UserViewSet(viewsets.ModelViewSet):
     #     return [permission() for permission in permission_classes]
 
 
+class AuthenticationViewSet(viewsets.GenericViewSet):
+    serializer_class = RegisterSerializer
+    permission_classes = [permissions.AllowAny]
+    queryset = UserProfile.objects.all()
+
+    def get_serializer_class(self):
+        if self.action == "login":
+            return LoginSerializer
+        elif self.action == "register":
+            return RegisterSerializer
+        elif self.action == "logout":
+            return None
+        return UserSerializer
+
+    @action(detail=False, methods=["post"])
+    def register(self, request, pk=None):
+        serializer = self.get_serializer_class()(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            token, created = Token.objects.get_or_create(user_id=user.id)
+            response = {
+                "email": user.email,
+                "first_name": user.profile.first_name,
+                "last_name": user.profile.last_name,
+                "token": str(token),
+            }
+            return Response(response, status=status.HTTP_200_OK)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["post"])
+    def login(self, request):
+        print("jrerere")
+        serializer = self.get_serializer_class()(data=request.data)
+        if serializer.is_valid():
+            user = CustomUser.objects.get(email=serializer.validated_data["email"])
+            token, created = Token.objects.get_or_create(user=user)
+            response = {
+                "email": user.email,
+                "token": str(token),
+            }
+            return Response(response, status=status.HTTP_200_OK)
+        return Response(
+            {"error": "unable to login with provided credentials."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    @action(detail=False, methods=["get"])
+    def logout(self, request):
+        print("logged out")
+        # deleting the token after logging out
+        request.user.auth_token.delete()
+        return Response({"status": "logout has been successfully initiated"})
+
+
 class ProfileViewSet(viewsets.ModelViewSet):
-    queryset = Profile.objects.all().order_by("user__date_joined")
+    queryset = UserProfile.objects.all().order_by("user__date_joined")
     serializer_class = ProfileSerializer
     http_method_names = ["get"]
+
+
+class FriendshipViewSet(viewsets.ModelViewSet):
+    queryset = Friendship.objects.all().order_by("created")
+    serializer_class = FriendshipSerializer
 
 
 class PhotoViewSet(viewsets.ModelViewSet):

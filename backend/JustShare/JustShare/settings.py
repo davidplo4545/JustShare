@@ -41,10 +41,8 @@ INSTALLED_APPS = [
     "django.contrib.sites",
     "rest_framework",
     "rest_framework.authtoken",
-    "rest_auth",
     "allauth",
     "allauth.account",
-    "rest_auth.registration",
     "api",
 ]
 
@@ -137,26 +135,8 @@ REST_FRAMEWORK = {
     ],
 }
 
-REST_AUTH_SERIALIZERS = {
-    "LOGIN_SERIALIZER": "api.serializers.ProfileCreationSerializer",
-}
-
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 MEDIA_URL = "/media/"
 
-ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-ACCOUNT_EMAIL_REQUIRED = True
-ACCOUNT_UNIQUE_EMAIL = True
-ACCOUNT_USERNAME_REQUIRED = False
-ACCOUNT_AUTHENTICATION_METHOD = "email"
-ACCOUNT_CONFIRM_EMAIL_ON_GET = (
-    True  # E-mail address is automatically confirmed by a GET request
-)
-ACCOUNT_EMAIL_VERIFICATION = "none"  # Allow logins with an unverified e-mail address
-# ACCOUNT_EMAIL_VERIFICATION = "mandatory"
-# ACCOUNT_CONFIRM_EMAIL_ON_GET = True
-# ACCOUNT_EMAIL_CONFIRMATION_ANONYMOUS_REDIRECT_URL = "/?verification=1"
-# ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = "/?verification=1"
 
 SITE_ID = 1
-# EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"

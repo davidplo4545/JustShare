@@ -18,6 +18,7 @@ from django.urls import path, include
 from django.conf.urls import url
 from rest_framework.authtoken.views import obtain_auth_token
 from rest_framework.routers import SimpleRouter
+from rest_framework_nested import routers
 
 # from rest_framework_nested import routers
 from api import views
@@ -26,12 +27,18 @@ from api import views
 router = SimpleRouter()
 router.register(r"users", views.UserViewSet)
 router.register(r"profiles", views.ProfileViewSet)
+router.register(r"", views.AuthenticationViewSet)
 router.register(r"photos", views.PhotoViewSet)
 
+profiles_router = routers.NestedSimpleRouter(router, r"profiles", lookup="profile")
+# users router for /profiles
+profiles_router.register(
+    r"friends", views.FriendshipViewSet, basename="profile-friends"
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    url(r"^api/", include("rest_auth.urls")),
-    url(r"^api/register/", include("rest_auth.registration.urls")),
+    # url(r"^api/", include("rest_auth.urls")),
     path("api/", include(router.urls)),
+    path("", include(profiles_router.urls)),
 ]

@@ -33,9 +33,22 @@ class UserProfile(models.Model):
 
 
 class Friendship(models.Model):
+    PENDING = 0
+    DONE = 1
+    BLOCKED = 2
+    STATUS_CHOICES = (
+        (PENDING, "Pending"),
+        (DONE, "Done"),
+        (BLOCKED, "Blocked"),
+    )
     created = models.DateTimeField(auto_now_add=True, editable=False)
-    creator = models.ForeignKey(CustomUser, related_name="friendship_creater")
-    friend = models.ForeignKey(CustomUser, related_name="friend")
+    creator = models.ForeignKey(
+        CustomUser, related_name="friendship_creater", on_delete=models.CASCADE
+    )
+    friend = models.ForeignKey(
+        CustomUser, related_name="friend", on_delete=models.CASCADE
+    )
+    status = models.CharField(max_length=9, choices=STATUS_CHOICES, default=0)
 
 
 def get_image_path(instance, filename):
