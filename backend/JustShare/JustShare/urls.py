@@ -30,15 +30,13 @@ router.register(r"profiles", views.ProfileViewSet)
 router.register(r"", views.AuthenticationViewSet)
 router.register(r"photos", views.PhotoViewSet)
 
-profiles_router = routers.NestedSimpleRouter(router, r"profiles", lookup="profile")
+users_router = routers.NestedSimpleRouter(router, r"users", lookup="user")
 # users router for /profiles
-profiles_router.register(
-    r"friends", views.FriendshipViewSet, basename="profile-friends"
-)
+users_router.register(r"friends", views.FriendshipViewSet, basename="user-friends")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     # url(r"^api/", include("rest_auth.urls")),
     path("api/", include(router.urls)),
-    path("", include(profiles_router.urls)),
+    path("api/", include(users_router.urls)),
 ]

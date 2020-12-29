@@ -10,6 +10,7 @@ from rest_framework.response import Response
 from .serializers import (
     UserSerializer,
     ProfileSerializer,
+    FriendshipSerializer,
     RegisterSerializer,
     LoginSerializer,
     PhotoSerializer,
@@ -74,7 +75,6 @@ class AuthenticationViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=["post"])
     def login(self, request):
-        print("jrerere")
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
             user = CustomUser.objects.get(email=serializer.validated_data["email"])
@@ -91,7 +91,6 @@ class AuthenticationViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=["get"])
     def logout(self, request):
-        print("logged out")
         # deleting the token after logging out
         request.user.auth_token.delete()
         return Response({"status": "logout has been successfully initiated"})
@@ -104,8 +103,29 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
 
 class FriendshipViewSet(viewsets.ModelViewSet):
-    queryset = Friendship.objects.all().order_by("created")
     serializer_class = FriendshipSerializer
+    http_method_names = ["get", "post", "delete", "patch"]
+
+    def get_queryset(self):
+        # print(UserProfile.objects.get(user__pk=user_pk))
+        friends = UserProfile.objects.get(user__pk=self.kwargs["user_pk"]).friends()
+        return friends
+
+    def retrieve(self, request, pk=None, user_pk=None):
+        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+
+    def list(self, request, user_pk=None):
+        try:
+            friends_queryset = self.get_queryset()
+        except:
+            return Response({"status": "User does not exist"})
+        serializer = self.serializer_class(friends_queryset, many=True)
+        print(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def perform_create(self, serializer):
+        friend = CustomUser.objects.get(id=self.kwargs.get("user_pk"))
+        serializer.save(creator=self.request.user, friend=friend, status=0)
 
 
 class PhotoViewSet(viewsets.ModelViewSet):

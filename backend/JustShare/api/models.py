@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db.models import Q
 from django.utils.translation import ugettext_lazy as _
 
 from .managers import CustomUserManager
@@ -27,19 +28,18 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
-
+        
     def friends(self):
         return Friendship.objects.filter(Q(creator=self.user) | Q(friend=self.user))
+
 
 
 class Friendship(models.Model):
     PENDING = 0
     DONE = 1
-    BLOCKED = 2
     STATUS_CHOICES = (
         (PENDING, "Pending"),
         (DONE, "Done"),
-        (BLOCKED, "Blocked"),
     )
     created = models.DateTimeField(auto_now_add=True, editable=False)
     creator = models.ForeignKey(

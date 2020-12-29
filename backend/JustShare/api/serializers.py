@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
-from .models import CustomUser, UserProfile, Photo, Collection
+from .models import CustomUser, UserProfile, Friendship, Photo, Collection
 from rest_framework.authentication import authenticate
 
 
@@ -10,19 +10,24 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "email", "date_joined", "is_superuser", "profile"]
 
 
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserProfile
+        fields = ["first_name", "last_name"]
+
+
 class RegisterSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer(required=True)
     email = serializers.EmailField(
         required=True, validators=[UniqueValidator(queryset=CustomUser.objects.all())]
     )
     password = serializers.CharField(write_only=True)
 
     class Meta:
-        model = UserProfile
-        fields = ["email", "password", "first_name", "last_name"]
+        model = CustomUser
+        fields = ["email", "password", "profile"]
         extra_kwargs = {
             "password": {"write_only": True},
-            "first_name": {"required": True},
-            "last_name": {"required": True},
         }
 
     def create(self, validated_data):
@@ -31,11 +36,12 @@ class RegisterSerializer(serializers.ModelSerializer):
             email=validated_data["email"],
         )
         user.set_password(validated_data["password"])
+        profile_data = validated_data.pop("profile")
         # create profile
         profile = UserProfile.objects.create(
             user=user,
-            first_name=validated_data["first_name"],
-            last_name=validated_data["last_name"],
+            first_name=profile_data["first_name"],
+            last_name=profile_data["last_name"],
         )
         user.save()
         return user
@@ -46,6 +52,7 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
     class Meta:
+        model = CustomUser
         fields = ["email", "password"]
 
     def validate(self, attrs):
@@ -63,9 +70,18 @@ class LoginSerializer(serializers.Serializer):
             )
 
 
-class ProfileSerializer(serializers.ModelSerializer):
+class FriendshipSerializer(serializers.ModelSerializer):
+    creator = ProfileSerializer(read_only=True)
+    friend = ProfileSerializer(read_only=True)
+
+    def __init__(self, *args, **kwargs):
+        """ Set all fields to read_only=True """
+        super(FriendshipSerializer, self).__init__(*args, **kwargs)
+        for field in self.fields:
+            self.fields[field].read_only = True
+
     class Meta:
-        model = CustomUser
+        model = Friendship
         fields = "__all__"
 
 
