@@ -1,6 +1,6 @@
 import os
 from django.conf import settings
-from .models import CustomUser, Photo, Collection, UserProfile
+from .models import CustomUser, UserProfile, Friendship, Photo, Collection
 from rest_framework import permissions
 from rest_framework.generics import CreateAPIView
 from rest_framework.decorators import action
@@ -26,7 +26,7 @@ class UserViewSet(viewsets.ModelViewSet):
     http_method_names = ["get"]
 
     def post(self, request, format=None):
-        serializer = UserSerializer(data=request.data)
+        serializer = UserSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -120,12 +120,61 @@ class FriendshipViewSet(viewsets.ModelViewSet):
         except:
             return Response({"status": "User does not exist"})
         serializer = self.serializer_class(friends_queryset, many=True)
-        print(serializer.data)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    def create(self, request, pk=None, user_pk=None):
+        try:
+            friend = CustomUser.objects.get(id=user_pk)
+        except:
+            return Response({"error": "user does not exist"})
+        # check if Friendship object exists already
+        # change status to "DONE" if it does
+        # create a new one if it doesn't exist
+        try:
+            friendship = Friendship.objects.get(
+                friend=self.request.user, creator=friend
+            )
+
+            # disallow creating more than one friendship <-- PERMISSIONS
+            if friendship.status == "DONE":
+                return Response(
+                    {"status": "friendship has already been created"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            friendship.status = "DONE"
+            friendship.save()
+            return Response(
+                {"status": "friendship status has been changed"},
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            # check if you already sent a friend request <-- PERMISSIONS
+            try:
+                friendship = Friendship.objects.get(
+                    creator=self.request.user, friend=friend
+                )
+                return Response(
+                    {"status": "friend request has already been sent"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            except:
+                pass
+
+            print(e)
+            serializer = FriendshipSerializer(data={})
+            if serializer.is_valid():
+                self.perform_create(serializer)
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     def perform_create(self, serializer):
+        """ Only called when new Friendship object is created"""
         friend = CustomUser.objects.get(id=self.kwargs.get("user_pk"))
-        serializer.save(creator=self.request.user, friend=friend, status=0)
+        serializer.save(
+            creator=self.request.user,
+            friend=friend,
+            status="PENDING",
+        )
 
 
 class PhotoViewSet(viewsets.ModelViewSet):

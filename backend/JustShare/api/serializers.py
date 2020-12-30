@@ -4,16 +4,50 @@ from .models import CustomUser, UserProfile, Friendship, Photo, Collection
 from rest_framework.authentication import authenticate
 
 
-class UserSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = CustomUser
-        fields = ["id", "email", "date_joined", "is_superuser", "profile"]
-
-
 class ProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserProfile
-        fields = ["first_name", "last_name"]
+        fields = ["id", "first_name", "last_name"]
+
+
+class FriendshipSerializer(serializers.ModelSerializer):
+    creator = serializers.PrimaryKeyRelatedField(read_only=True)
+    friend = serializers.PrimaryKeyRelatedField(read_only=True)
+    # status = serializers.ChoiceField(choices=Friendship.STATUS_CHOICES)
+
+    def __init__(self, *args, **kwargs):
+        """ Set all fields to read_only=True """
+        super(FriendshipSerializer, self).__init__(*args, **kwargs)
+        for field in self.fields:
+            self.fields[field].read_only = True
+
+    class Meta:
+        model = Friendship
+        fields = ["creator", "friend", "status"]
+
+
+class UserSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer()
+
+    class Meta:
+        model = CustomUser
+        fields = ["url", "email", "date_joined", "is_superuser", "profile"]
+
+    def to_representation(self, instance):
+        result_json = super(UserSerializer, self).to_representation(instance)
+        result_json["friends"] = []
+
+        for friendship in instance.profile.friends():
+            friendship_data = FriendshipSerializer(friendship)
+            result_json["friends"].append(friendship_data.data)
+            # result_json["friends"].append(
+            #     {
+            #         "creator": friendship.creator.id,
+            #         "friend": friendship.friend.id,
+            #         "status": friendship.status,
+            #     }
+            # )
+        return result_json
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -68,21 +102,6 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "Unable to login with credentials provided."
             )
-
-
-class FriendshipSerializer(serializers.ModelSerializer):
-    creator = ProfileSerializer(read_only=True)
-    friend = ProfileSerializer(read_only=True)
-
-    def __init__(self, *args, **kwargs):
-        """ Set all fields to read_only=True """
-        super(FriendshipSerializer, self).__init__(*args, **kwargs)
-        for field in self.fields:
-            self.fields[field].read_only = True
-
-    class Meta:
-        model = Friendship
-        fields = "__all__"
 
 
 class PhotoSerializer(serializers.ModelSerializer):

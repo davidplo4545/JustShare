@@ -28,18 +28,20 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
-        
+
     def friends(self):
         return Friendship.objects.filter(Q(creator=self.user) | Q(friend=self.user))
 
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}"
 
 
 class Friendship(models.Model):
-    PENDING = 0
-    DONE = 1
+    PENDING = "PENDING"
+    DONE = "DONE"
     STATUS_CHOICES = (
-        (PENDING, "Pending"),
-        (DONE, "Done"),
+        (PENDING, "PENDING"),
+        (DONE, "DONE"),
     )
     created = models.DateTimeField(auto_now_add=True, editable=False)
     creator = models.ForeignKey(
@@ -48,7 +50,10 @@ class Friendship(models.Model):
     friend = models.ForeignKey(
         CustomUser, related_name="friend", on_delete=models.CASCADE
     )
-    status = models.CharField(max_length=9, choices=STATUS_CHOICES, default=0)
+    status = models.CharField(max_length=9, choices=STATUS_CHOICES, default="PENDING")
+
+    def __str__(self):
+        return f"-{self.creator.profile.get_full_name()}- friends with -{self.friend.profile.get_full_name()}-"
 
 
 def get_image_path(instance, filename):
