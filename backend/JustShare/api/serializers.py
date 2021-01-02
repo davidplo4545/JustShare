@@ -23,7 +23,7 @@ class FriendshipSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Friendship
-        fields = ["creator", "friend", "status"]
+        fields = ["id", "creator", "friend", "status"]
 
 
 class UserSerializer(serializers.ModelSerializer):

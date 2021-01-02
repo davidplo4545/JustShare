@@ -75,5 +75,8 @@ class Collection(models.Model):
     name = models.CharField(max_length=255)
     description = models.CharField(max_length=500, blank=True)
     thumbnail = models.ImageField(blank=True)
+    creator = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="created_collections"
+    )
     members = models.ManyToManyField(CustomUser, related_name="collections")
     photos = models.ManyToManyField(Photo, related_name="collections")

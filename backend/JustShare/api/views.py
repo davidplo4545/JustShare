@@ -1,5 +1,6 @@
 import os
 from django.conf import settings
+from django.shortcuts import get_object_or_404
 from .models import CustomUser, UserProfile, Friendship, Photo, Collection
 from rest_framework import permissions
 from rest_framework.generics import CreateAPIView
@@ -16,6 +17,8 @@ from .serializers import (
     PhotoSerializer,
     CollectionSerializer,
 )
+
+from .permissions import FriendshipPermission
 
 # from .permissions import IsUserProfile, IsReaderOrReadOnly, IsEntryOwnerOrReadOnly
 
@@ -104,21 +107,25 @@ class ProfileViewSet(viewsets.ModelViewSet):
 
 class FriendshipViewSet(viewsets.ModelViewSet):
     serializer_class = FriendshipSerializer
-    http_method_names = ["get", "post", "delete", "patch"]
+    http_method_names = ["get", "post", "delete"]
+    permission_classes = [FriendshipPermission]
 
     def get_queryset(self):
-        # print(UserProfile.objects.get(user__pk=user_pk))
         friends = UserProfile.objects.get(user__pk=self.kwargs["user_pk"]).friends()
         return friends
 
-    def retrieve(self, request, pk=None, user_pk=None):
-        return Response(status=status.HTTP_405_METHOD_NOT_ALLOWED)
+    def get_object(self):
+        obj = get_object_or_404(Friendship, pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def list(self, request, user_pk=None):
         try:
             friends_queryset = self.get_queryset()
         except:
-            return Response({"status": "User does not exist"})
+            return Response(
+                {"status": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
+            )
         serializer = self.serializer_class(friends_queryset, many=True)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
@@ -126,7 +133,14 @@ class FriendshipViewSet(viewsets.ModelViewSet):
         try:
             friend = CustomUser.objects.get(id=user_pk)
         except:
-            return Response({"error": "user does not exist"})
+            return Response(
+                {"error": "user does not exist"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # can't "friend" yourself
+        if friend == request.user:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
         # check if Friendship object exists already
         # change status to "DONE" if it does
         # create a new one if it doesn't exist
@@ -161,19 +175,25 @@ class FriendshipViewSet(viewsets.ModelViewSet):
             except:
                 pass
 
-            print(e)
             serializer = FriendshipSerializer(data={})
             if serializer.is_valid():
                 self.perform_create(serializer)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def perform_create(self, serializer):
-        """ Only called when new Friendship object is created"""
+        """ Only called when new Friendship object is created """
         friend = CustomUser.objects.get(id=self.kwargs.get("user_pk"))
         serializer.save(
             creator=self.request.user,
             friend=friend,
             status="PENDING",
+        )
+
+    def destroy(self, request, pk=None, user_pk=None):
+        instance = self.get_object()
+        self.perform_destroy(instance)
+        return Response(
+            {"status": "friendship has been deleted"}, status=status.HTTP_200_OK
         )
 
 
@@ -204,137 +224,3 @@ class PhotoViewSet(viewsets.ModelViewSet):
         return Response(
             {"status": "successfuly deleted the photo"}, status=status.HTTP_200_OK
         )
-
-
-# class PublicBookEntryViewSet(viewsets.ModelViewSet):
-#     serializer_class = BookEntrySerializer
-#     queryset = BookEntry.objects.all()
-#     permission_classes = [permissions.IsAuthenticated, IsEntryOwnerOrReadOnly]
-
-#     def get_serializer_class(self):
-#         if self.action in ['create']:
-#             return BookEntryCreateSerializer
-#         return BookEntrySerializer
-
-#     def get_queryset(self):
-#         return BookEntry.objects.filter(reader__pk=self.kwargs['profile_pk'])
-
-#     def create(self, request,  pk=None, profile_pk=None):
-#         serializer = self.get_serializer_class()(data=request.data)
-#         reader = Profile.objects.get(id=profile_pk)
-#         # probably not a neccessary check
-#         if reader != request.user.profile:
-#             raise serializers.ValidationError(
-#                 {'error': 'cannot post to a different profile'})
-#         book_id = request.data['book']
-#         if serializer.is_valid():
-#             # check if entry with this book already exists
-#             if reader.entries.filter(book__id=book_id).exists():
-#                 raise serializers.ValidationError(
-#                     {'error': 'You have already added entry for this book.'})
-#             self.perform_create(serializer)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-
-# class PrivateBookEntryViewSet(viewsets.ModelViewSet):
-#     serializer_class = BookEntrySerializer
-#     permission_classes = [
-#         permissions.IsAuthenticated, IsReaderOrReadOnly]
-
-#     def get_queryset(self):
-#         """ Return a queryset of the current user book entries"""
-#         reader = self.request.user.profile
-#         return BookEntry.objects.filter(reader=reader)
-
-#     def get_serializer_class(self):
-#         if self.action in ['create']:
-#             return BookEntryCreateSerializer
-#         return BookEntrySerializer
-
-#     def create(self, request,  *args, **kwargs):
-#         serializer = self.get_serializer_class()(data=request.data)
-#         reader = request.user.profile
-#         book_id = request.data['book']
-#         if serializer.is_valid():
-#             # check if entry with this book already exists
-#             if reader.entries.filter(book__id=book_id).exists():
-#                 raise Response(
-#                     {'error': 'You have already added entry for this book.'}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
-#             self.perform_create(serializer)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-#     def perform_create(self, serializer):
-#         serializer.save(reader=self.request.user.profile)
-
-#     def update(self, request, pk=None, *args, **kwargs):
-#         entry = self.get_object()
-#         entry_data = request.data.copy()
-#         entry_data['entry'] = entry
-#         serializer = self.serializer_class(
-#             entry, data=entry_data, partial=True)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-#     def destroy(self,  request, pk=None):
-#         entry = self.get_object()
-#         entry.delete()
-#         return Response({'status': 'successfuly deleted the entry'}, status=status.HTTP_200_OK)
-
-
-# class ReadingRecordViewSet(viewsets.ModelViewSet):
-#     serializer_class = ReadingRecordSerializer
-#     permission_classes = [permissions.IsAuthenticated]
-
-#     def get_queryset(self):
-#         entry_pk = self.kwargs['entry_pk']
-#         return ReadingRecord.objects.filter(book_entry__id=entry_pk)
-
-#     def create(self, request, entry_pk, *args, **kwargs):
-#         entry = BookEntry.objects.get(pk=entry_pk)
-#         record_data = request.data.copy()
-#         record_data['book_entry'] = entry
-#         serializer = self.serializer_class(data=record_data)
-#         if serializer.is_valid():
-#             serializer.save(book_entry=entry)
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-#     def destroy(self, request, entry_pk, pk=None):
-#         record = self.get_object()
-#         entry = record.book_entry
-#         # can only delete the last record
-#         if self.is_last_record(entry, record):
-#             record.delete()
-#             try:
-#                 entry.current_page = list(
-#                     entry.reading_records.all())[-2].current_page
-#             except:
-#                 entry.current_page = 0
-#             entry.save()
-#             return Response({'status': 'successfuly deleted the record'}, status=status.HTTP_200_OK)
-#         return Response({'error': 'can only delete the last record of the entry.'}, status=status.HTTP_400_BAD_REQUEST)
-
-#     def update(self, request, entry_pk, pk=None, *args, **kwargs):
-#         record = ReadingRecord.objects.get(pk=pk)
-#         entry = record.book_entry
-#         record_data = request.data.copy()
-#         record_data['book_entry'] = entry
-#         record_data['current_record_id'] = record.pk
-#         # can only update the last record
-#         if self.is_last_record(entry, record):
-#             serializer = self.serializer_class(
-#                 record, data=record_data, partial=True)
-#             if serializer.is_valid():
-#                 serializer.save(book_entry=entry)
-#                 return Response(serializer.data, status=status.HTTP_201_CREATED)
-#             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-#         return Response({'error': 'can only update the last record of the entry.'}, status=status.HTTP_400_BAD_REQUEST)
-
-#     def is_last_record(self, entry, record):
-#         """
-#         Check if the record is the last record in the entry
-#         """
-#         last_record = list(entry.reading_records.all())[-1]
-#         return last_record == record
