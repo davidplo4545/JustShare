@@ -28,6 +28,7 @@ router = SimpleRouter()
 router.register(r"users", views.UserViewSet)
 router.register(r"profiles", views.ProfileViewSet)
 router.register(r"", views.AuthenticationViewSet)
+router.register(r"collections", views.CollectionViewSet, basename="Collection")
 router.register(r"photos", views.PhotoViewSet)
 
 users_router = routers.NestedSimpleRouter(router, r"users", lookup="user")

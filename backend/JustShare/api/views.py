@@ -111,8 +111,7 @@ class FriendshipViewSet(viewsets.ModelViewSet):
     permission_classes = [FriendshipPermission]
 
     def get_queryset(self):
-        friends = UserProfile.objects.get(user__pk=self.kwargs["user_pk"]).friends()
-        return friends
+        return UserProfile.objects.get(user__pk=self.kwargs["user_pk"]).friends()
 
     def get_object(self):
         obj = get_object_or_404(Friendship, pk=self.kwargs["pk"])
@@ -134,7 +133,7 @@ class FriendshipViewSet(viewsets.ModelViewSet):
             friend = CustomUser.objects.get(id=user_pk)
         except:
             return Response(
-                {"error": "user does not exist"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "User does not exist"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # can't "friend" yourself
@@ -210,9 +209,6 @@ class PhotoViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(uploader=self.request.user)
 
-    def perform_update(self, serializer):
-        serializer.save(uploader=self.request.user)
-
     def destroy(self, request, pk=None):
         photo = self.get_object()
         # delete the image file from the directory
@@ -224,3 +220,28 @@ class PhotoViewSet(viewsets.ModelViewSet):
         return Response(
             {"status": "successfuly deleted the photo"}, status=status.HTTP_200_OK
         )
+
+
+class CollectionViewSet(viewsets.ModelViewSet):
+    serializer_class = CollectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["get", "post", "delete", "patch"]
+
+    def get_queryset(self):
+        return Collection.objects.filter(members__id=self.request.user.id)
+
+    def list(self, request):
+        try:
+            queryset = self.get_queryset()
+            print(queryset)
+        except:
+            return Response(
+                {"status": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
+            )
+        serializer = self.serializer_class(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    # def partial_update(self,request, pk=None):
+
+    def perform_create(self, serializer):
+        serializer.save(creator=self.request.user, members=[self.request.user])

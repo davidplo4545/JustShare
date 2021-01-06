@@ -1,3 +1,4 @@
+from itertools import chain
 from rest_framework import serializers
 from rest_framework.validators import UniqueValidator
 from .models import CustomUser, UserProfile, Friendship, Photo, Collection
@@ -31,7 +32,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = CustomUser
-        fields = ["url", "email", "date_joined", "is_superuser", "profile"]
+        fields = ["url", "email", "date_joined", "profile"]
 
     def to_representation(self, instance):
         result_json = super(UserSerializer, self).to_representation(instance)
@@ -105,7 +106,7 @@ class LoginSerializer(serializers.Serializer):
 
 
 class PhotoSerializer(serializers.ModelSerializer):
-    uploader = UserSerializer(read_only=True)
+    uploader = ProfileSerializer(source="uploader.profile", read_only=True)
 
     class Meta:
         model = Photo
@@ -113,6 +114,46 @@ class PhotoSerializer(serializers.ModelSerializer):
 
 
 class CollectionSerializer(serializers.ModelSerializer):
+    thumbnail = serializers.ImageField(required=False)
+    description = serializers.CharField(required=False)
+    # photos_ids = serializers.PrimaryKeyRelatedField(
+    #     many=True,
+    #     read_only=False,
+    #     queryset=Photo.objects.all(),
+    #     source="photos",
+    #     required=False,
+    # )
+
     class Meta:
         model = Collection
-        fields = "__all__"
+        fields = [
+            "id",
+            "thumbnail",
+            "name",
+            "description",
+            "members",
+            "photos",
+            "creator",
+        ]
+
+        extra_kwargs = {
+            "members": {"read_only": True},
+            "creator": {"read_only": True},
+            "photos": {"read_only": True},
+        }
+
+    def update(self, instance, validated_data):
+        # check for photos to upload
+        try:
+            photos_ids = self.initial_data["photos_ids"]
+            photos = Photo.objects.filter(pk__in=photos_ids)
+            for photo in photos:
+                instance.photos.add(photo)
+        except Exception as e:
+            print(e)
+            instance.name = validated_data.get("name")
+            instance.description = validated_data.get("description")
+            instance.thumbnail = validated_data.get("thumbnail")
+
+        instance.save()
+        return instance

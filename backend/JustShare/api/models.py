@@ -61,14 +61,11 @@ def get_image_path(instance, filename):
 
 
 class Photo(models.Model):
-    # SETUP MEDIA
     uploader = models.ForeignKey(
         CustomUser, on_delete=models.CASCADE, related_name="photos"
     )
     image = models.ImageField(upload_to=get_image_path)
     upload_date = models.DateField(auto_now_add=True, editable=False)
-
-    # add creation_date later !
 
 
 class Collection(models.Model):
@@ -80,3 +77,6 @@ class Collection(models.Model):
     )
     members = models.ManyToManyField(CustomUser, related_name="collections")
     photos = models.ManyToManyField(Photo, related_name="collections")
+
+    def __str__(self):
+        return f"Collection: {self.name}"
