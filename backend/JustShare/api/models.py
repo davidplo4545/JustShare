@@ -5,6 +5,14 @@ from django.utils.translation import ugettext_lazy as _
 
 from .managers import CustomUserManager
 
+PENDING = "PENDING"
+DONE = "DONE"
+
+STATUS_CHOICES = (
+    (PENDING, "PENDING"),
+    (DONE, "DONE"),
+)
+
 
 class CustomUser(AbstractUser):
     username = None
@@ -37,12 +45,6 @@ class UserProfile(models.Model):
 
 
 class Friendship(models.Model):
-    PENDING = "PENDING"
-    DONE = "DONE"
-    STATUS_CHOICES = (
-        (PENDING, "PENDING"),
-        (DONE, "DONE"),
-    )
     created = models.DateTimeField(auto_now_add=True, editable=False)
     creator = models.ForeignKey(
         CustomUser, related_name="friendship_creater", on_delete=models.CASCADE
@@ -80,3 +82,20 @@ class Collection(models.Model):
 
     def __str__(self):
         return f"Collection: {self.name}"
+
+
+class CollectionInvite(models.Model):
+    collection = models.ForeignKey(
+        Collection, on_delete=models.CASCADE, related_name="invites"
+    )
+    from_user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="invites_sent"
+    )
+    to_user = models.ForeignKey(
+        CustomUser, on_delete=models.CASCADE, related_name="invites_received"
+    )
+    created_at = models.DateField(auto_now_add=True, editable=False)
+    status = models.CharField(max_length=9, choices=STATUS_CHOICES, default="PENDING")
+
+    def __str__(self):
+        return f"Collection Invite: from {self.from_user} to {self.to_user}"

@@ -1,7 +1,15 @@
 import os
 from django.conf import settings
 from django.shortcuts import get_object_or_404
-from .models import CustomUser, UserProfile, Friendship, Photo, Collection
+from .models import (
+    CustomUser,
+    UserProfile,
+    Friendship,
+    Photo,
+    Collection,
+    CollectionInvite,
+    STATUS_CHOICES,
+)
 from rest_framework import permissions
 from rest_framework.generics import CreateAPIView
 from rest_framework.decorators import action
@@ -16,9 +24,11 @@ from .serializers import (
     LoginSerializer,
     PhotoSerializer,
     CollectionSerializer,
+    CollectionInvite,
+    UpdateCollectionPhotosSerializer,
 )
 
-from .permissions import FriendshipPermission
+from .permissions import FriendshipPermission, PhotoPermission
 
 # from .permissions import IsUserProfile, IsReaderOrReadOnly, IsEntryOwnerOrReadOnly
 
@@ -203,7 +213,7 @@ class PhotoViewSet(viewsets.ModelViewSet):
 
     queryset = Photo.objects.all()
     serializer_class = PhotoSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [PhotoPermission]
     http_method_names = ["get", "post", "delete", "patch"]
 
     def perform_create(self, serializer):
@@ -233,7 +243,6 @@ class CollectionViewSet(viewsets.ModelViewSet):
     def list(self, request):
         try:
             queryset = self.get_queryset()
-            print(queryset)
         except:
             return Response(
                 {"status": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
@@ -245,3 +254,69 @@ class CollectionViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(creator=self.request.user, members=[self.request.user])
+
+    @action(detail=True, methods=["patch"])
+    def add_photos(self, request, pk=None):
+        obj = self.get_object()
+        context = {"request": request, "action": self.action}
+        serializer = UpdateCollectionPhotosSerializer(
+            obj, data=request.data, partial=True, context=context
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({"status": "Photos has been added"}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["patch"])
+    def delete_photos(self, request, pk=None):
+        obj = self.get_object()
+        context = {"request": request, "action": self.action}
+        serializer = UpdateCollectionPhotosSerializer(
+            obj, data=request.data, partial=True, context=context
+        )
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(
+            {"status": "Photos has been deleted"}, status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["post"])
+    def invite(self, request, pk=None):
+        collection = self.get_object()
+        context = {"request": request, "collection": collection}
+        # choose which serializer
+        if request.data:
+            serializer = CollectionInviteSendSerializer(
+                data=request.data, context=context
+            )
+        else:
+            try:
+                invite = CollectionInvite.objects.get(
+                    collection=collection,
+                    to_user=request.user,
+                    status=STATUS_CHOICES.PENDING,
+                )
+            except:
+                return Response(
+                    {"error": "No invite found to this collection"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+            serializer = CollectionInviteReplySerializer(
+                data=request.data, context=context
+            )
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response(
+            {"status": "Collection invite has been sent"}, status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=["post"])
+    def reply_invite(self, request, pk=None):
+        collection = self.get_object()
+        context = {"request": request, "collection": collection}
+
+
+class AcceptCollectionInvite(viewsets.ModelViewSet):
+    serializer_class = CollectionSerializer
+    permission_classes = [permissions.AllowAny]
+    http_method_names = ["get", "post", "delete"]
