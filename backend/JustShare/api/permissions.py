@@ -1,22 +1,22 @@
 from rest_framework import permissions
 
 
-class CollectionPermission(permissions.BasePermission):
-    def has_permission(self, request, view):
-        if not request.user.is_authenticated():
-            return False
-
-        if view.action == "reply_invite":
+class IsCollectionMember(permissions.BasePermission):
+    def has_object_permission(self, request, view, obj):
+        if view.action in ["reply_invite", "list"]:
             return True
+        elif view.action in ["partial_update", "update", "destroy"]:
+            # only creator can edit the collection itself
+            return obj.creator == request.user
         else:
-            # get permission only if user is included in the collection members
+            # only members can do "write" operations
             return request.user in obj.members.all()
+        return False
 
 
 class PhotoPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        if not request.user.is_authenticated():
-            return False
+        return request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
         # Deny write actions if you are not the photo uploader
@@ -27,8 +27,7 @@ class PhotoPermission(permissions.BasePermission):
 
 class FriendshipPermission(permissions.BasePermission):
     def has_permission(self, request, view):
-        if not request.user.is_authenticated():
-            return False
+        return request.user.is_authenticated
 
     def has_object_permission(self, request, view, obj):
         # Deny 'delete' action if user does not belong to the object

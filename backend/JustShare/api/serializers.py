@@ -174,13 +174,6 @@ class UpdateCollectionPhotosSerializer(serializers.ModelSerializer):
 
 
 class CollectionInviteSendSerializer(serializers.ModelSerializer):
-    SEND = "SEND"
-    DELETE = "DELETE"
-    ACTION_CHOICES = (
-        (SEND, "SEND"),
-        (DELETE, "DELETE"),
-    )
-    action = serializers.ChoiceField(choices=ACTION_CHOICES, required=True)
     to_user = serializers.PrimaryKeyRelatedField(
         read_only=False,
         queryset=CustomUser.objects.all(),
@@ -195,65 +188,55 @@ class CollectionInviteSendSerializer(serializers.ModelSerializer):
             "created_at": {"read_only": True},
         }
 
+    def validate(self, data):
+        """
+        Check that an invite hasn't been sent/accepted already
+        """
+        user = self.context["request"].user
+        collection = self.context["collection"]
+
+        invites = CollectionInvite.objects.filter(to_user=data["to_user"])
+        if invites:
+            raise serializers.ValidationError(
+                {"error": "An invite has already been sent/accepted"}
+            )
+        return data
+
     def create(self, validated_data):
         # get the collection from the View
         collection = self.context["collection"]
-        if validated_data["action"] == self.ACTION_CHOICES.SEND:
-            collection_invite = CollectionInvite.objects.create(
-                collection=collection,
-                from_user=self.context["request"].user,
-                to_user=validated_data["to_user"],
-                status=STATUS_CHOICES.PENDING,
-            )
-            collection_invite.save()
-            return collection_invite
-        else:
-            # DELETE Action - Delete the invite that was sent
-            try:
-                invite = CollectionInvite.objects.get(
-                    collection=collection,
-                    to_user=self.validated_data["to_user"],
-                    from_user=self.context["request"].user,
-                )
-                if invite.status == STATUS_CHOICES.DONE:
-                    raise serializers.ValidationError(
-                        {
-                            "Error": "Cannot delete an invite that has already been accepted."
-                        }
-                    )
-                invite.delete()
-            except:
-                raise serializers.ValidationError({"Error": "Invite was not found"})
+        collection_invite = CollectionInvite.objects.create(
+            collection=collection,
+            from_user=self.context["request"].user,
+            to_user=validated_data["to_user"],
+            status="PENDING",
+        )
+        collection_invite.save()
+        return collection_invite
 
 
-class CollectionInviteReplySerializer(serializers.BaseSerializer):
+class CollectionInviteReplySerializer(serializers.ModelSerializer):
     ACCEPT = "ACCEPT"
     DECLINE = "DECLINE"
-    LEAVE = "LEAVE"
     ACTION_CHOICES = (
         (ACCEPT, "ACCEPT"),
         (DECLINE, "DECLINE"),
-        (LEAVE, "LEAVE"),
     )
     action = serializers.ChoiceField(choices=ACTION_CHOICES, required=True)
 
     class Meta:
-        fields = []
+        model = CollectionInvite
+        fields = ["action"]
 
-    def create(self, validated_data):
+    def update(self, instance, validated_data):
         collection = self.context["collection"]
-        collection_invite = CollectionInvite.objects.get(
-            collection=collection, to_user=self.context["request"].user
-        )
-        if validated_data["action"] == self.ACTION_CHOICES.ACCEPT:
-            collection.members.add(self.context["request"].user)
-            collection_invite.status = STATUS_CHOICES.DONE
-        elif validated_data["action"] == self.ACTION_CHOICES.DECLINE:
-            collection_invite.delete()
-            return None
-        elif validated_data["action"] == self.ACTION_CHOICES.LEAVE:
-            collection.members.remove(self.context["request"].user)
-            collection_invite.delete()
-            return None
-        collection_invite.save()
-        return collection_invite
+        collection.members.add(self.context["request"].user)
+        instance.status = "DONE"
+        instance.save()
+        return instance
+
+
+class CollectionInviteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CollectionInvite
+        fields = "__all__"

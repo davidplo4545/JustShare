@@ -38,6 +38,7 @@ users_router.register(r"friends", views.FriendshipViewSet, basename="user-friend
 urlpatterns = [
     path("admin/", admin.site.urls),
     # url(r"^api/", include("rest_auth.urls")),
+    path("api/invites/", views.CollectionInvitesView.as_view()),
     path("api/", include(router.urls)),
     path("api/", include(users_router.urls)),
 ]

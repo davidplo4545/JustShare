@@ -1,6 +1,7 @@
 import os
 from django.conf import settings
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from .models import (
     CustomUser,
     UserProfile,
@@ -15,6 +16,8 @@ from rest_framework.generics import CreateAPIView
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework import status, viewsets, serializers
+from rest_framework import generics
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
 from .serializers import (
     UserSerializer,
@@ -24,13 +27,13 @@ from .serializers import (
     LoginSerializer,
     PhotoSerializer,
     CollectionSerializer,
-    CollectionInvite,
+    CollectionInviteSerializer,
+    CollectionInviteSendSerializer,
+    CollectionInviteReplySerializer,
     UpdateCollectionPhotosSerializer,
 )
 
-from .permissions import FriendshipPermission, PhotoPermission
-
-# from .permissions import IsUserProfile, IsReaderOrReadOnly, IsEntryOwnerOrReadOnly
+from .permissions import FriendshipPermission, PhotoPermission, IsCollectionMember
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -44,17 +47,6 @@ class UserViewSet(viewsets.ModelViewSet):
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-    # def get_permissions(self):
-    #     """
-    #     Instantiates and returns the list of permissions that this view requires.
-    #     """
-    #     any_permission_actions = ['register', 'login']
-    #     if self.action in any_permission_actions:
-    #         permission_classes = [permissions.AllowAny]
-    #     else:
-    #         permission_classes = [permissions.IsAdminUser]
-    #     return [permission() for permission in permission_classes]
 
 
 class AuthenticationViewSet(viewsets.GenericViewSet):
@@ -234,11 +226,16 @@ class PhotoViewSet(viewsets.ModelViewSet):
 
 class CollectionViewSet(viewsets.ModelViewSet):
     serializer_class = CollectionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsCollectionMember]
     http_method_names = ["get", "post", "delete", "patch"]
 
     def get_queryset(self):
         return Collection.objects.filter(members__id=self.request.user.id)
+
+    def get_object(self):
+        obj = get_object_or_404(Collection.objects.all(), pk=self.kwargs["pk"])
+        self.check_object_permissions(self.request, obj)
+        return obj
 
     def list(self, request):
         try:
@@ -279,14 +276,24 @@ class CollectionViewSet(viewsets.ModelViewSet):
             {"status": "Photos has been deleted"}, status=status.HTTP_200_OK
         )
 
-    @action(detail=True, methods=["post"])
+    @action(detail=True, methods=["post", "delete"])
     def invite(self, request, pk=None):
         collection = self.get_object()
         context = {"request": request, "collection": collection}
-        # choose which serializer
-        if request.data:
+        if request.method == "POST":
+            if request.data["to_user"] == request.user.id:
+                return Response(
+                    {"error": "cannot send invite to youself"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
             serializer = CollectionInviteSendSerializer(
                 data=request.data, context=context
+            )
+
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            return Response(
+                {"status": "Collection invite has been sent"}, status=status.HTTP_200_OK
             )
         else:
             try:
@@ -297,26 +304,66 @@ class CollectionViewSet(viewsets.ModelViewSet):
                 )
             except:
                 return Response(
-                    {"error": "No invite found to this collection"},
+                    {"error": "No invite found"},
                     status=status.HTTP_403_FORBIDDEN,
                 )
-
-            serializer = CollectionInviteReplySerializer(
-                data=request.data, context=context
+            invite.delete()
+            return Response(
+                {"status": "Invite has been deleted"}, status=status.HTTP_200_OK
             )
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        return Response(
-            {"status": "Collection invite has been sent"}, status=status.HTTP_200_OK
-        )
 
     @action(detail=True, methods=["post"])
     def reply_invite(self, request, pk=None):
         collection = self.get_object()
         context = {"request": request, "collection": collection}
+        try:
+            invite = CollectionInvite.objects.get(
+                collection=collection, to_user=context["request"].user
+            )
+            if invite.status == "DONE":
+                return Response({"status": "Invite has already been accepted"})
+        except:
+            return Response({"status": "No invite found"})
+
+        serializer = CollectionInviteReplySerializer(
+            invite, data=request.data, context=context
+        )
+
+        if request.data["action"] == "DECLINE":
+            invite.delete()
+            return Response(
+                {"status": "Invite has been declined"}, status=status.HTTP_200_OK
+            )
+        else:
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(
+                {"status": "Invite has been accepted"}, status=status.HTTP_200_OK
+            )
+
+    @action(detail=True, methods=["post"])
+    def leave(self, request, pk=None):
+        collection = self.get_object()
+        if request.user in collection.members.all():
+            collection.members.remove(request.user)
+            return Response(
+                {"Status": "You have left the collection."}, status=status.HTTP_200_OK
+            )
+        else:
+            return Response(
+                {"Status": "You are not member of the collection."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 
-class AcceptCollectionInvite(viewsets.ModelViewSet):
-    serializer_class = CollectionSerializer
-    permission_classes = [permissions.AllowAny]
-    http_method_names = ["get", "post", "delete"]
+class CollectionInvitesView(generics.ListAPIView):
+    serializer_class = CollectionInviteSerializer
+    model = CollectionInvite
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        queryset = self.model.objects.filter(Q(to_user=user) | Q(from_user=user))
+        if queryset:
+            return queryset.order_by("-created_at")
+        raise NotFound()
