@@ -42,7 +42,8 @@ class UserViewSet(viewsets.ModelViewSet):
     http_method_names = ["get"]
 
     def post(self, request, format=None):
-        serializer = UserSerializer(data=request.data, context={"request": request})
+        serializer = UserSerializer(
+            data=request.data, context={"request": request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -80,9 +81,11 @@ class AuthenticationViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=["post"])
     def login(self, request):
+        print(request.data)
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
-            user = CustomUser.objects.get(email=serializer.validated_data["email"])
+            user = CustomUser.objects.get(
+                email=serializer.validated_data["email"])
             token, created = Token.objects.get_or_create(user=user)
             response = {
                 "email": user.email,
@@ -363,7 +366,8 @@ class CollectionInvitesView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = self.model.objects.filter(Q(to_user=user) | Q(from_user=user))
+        queryset = self.model.objects.filter(
+            Q(to_user=user) | Q(from_user=user))
         if queryset:
             return queryset.order_by("-created_at")
         raise NotFound()

@@ -1,0 +1,19 @@
+.App {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+main {
+  flex: 1;
+  outline: 1px solid black;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* justify-content: center; */
+}
+
+.footer {
+  background-color: red;
+  padding: 10px;
+}

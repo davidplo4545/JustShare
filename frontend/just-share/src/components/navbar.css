@@ -1,0 +1,19 @@
+.navbar-center {
+  width: 50%;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+}
+
+.collapsed-center {
+  display: flex;
+  justify-content: space-between;
+}
+
+@media only screen and (max-width: 992px) {
+  .navbar-center {
+    width: 100%;
+    margin: 0;
+    display: block;
+  }
+}
