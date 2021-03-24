@@ -1,0 +1,60 @@
+.friends-main {
+  width: 100%;
+  height: 100%;
+  display: flex;
+}
+
+.friends-side {
+  padding-left: 10px;
+  padding-right: 5px;
+  padding-top: 10px;
+  background: #343a40;
+  border-top: 1px solid white;
+  width: 360px;
+  color: white;
+}
+
+.friends-side h2 {
+  color: white;
+}
+
+/* friends.js style */
+.friends-list,
+.requested-friends-list {
+  margin: 0;
+  margin-top: 10px;
+  padding: 0;
+}
+
+/* FriendsListItem.js style */
+.friend-item {
+  display: flex;
+  border-top: 1px solid grey;
+  justify-content: space-between;
+  padding: 10px;
+}
+
+.friend-item:hover {
+  background: white;
+  color: black;
+}
+
+.friend-item img {
+  height: 100%;
+}
+
+.friend-data {
+  padding-left: 20px;
+  width: 100%;
+}
+
+.request-buttons .btn-decline {
+  margin-left: 10px;
+}
+
+.friend-preview {
+  /* flex */
+  /* display: flex; */
+  align-items: top;
+  justify-content: center;
+}

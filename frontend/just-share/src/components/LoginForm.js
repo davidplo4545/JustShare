@@ -1,22 +1,21 @@
-import React, {useState} from 'react'
-import { Link } from "react-router-dom";
+import React, {useState, useContext} from 'react'
+import { Link, useHistory, Redirect } from "react-router-dom";
 import {userLogin} from '../api/AuthenticationAPI.js'
+import {TokenContext} from '../hooks/TokenContext'
 
 const LoginForm = () =>{
-
-    const [email, setEmail] = useState("")
-    const [password, setPassword] = useState("")
-
+    const {token, setToken} = useContext(TokenContext)
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("")
 
     const handleSubmit = (event) => {
         event.preventDefault();
-        
-        const userData = {
-            'email': email,
-            'password': password,
-        }
 
-        userLogin(userData);
+        userLogin({
+            'email': email,
+            'password': password
+        }, setToken, setError);
 
     }
 
@@ -34,7 +33,7 @@ const LoginForm = () =>{
                 <label>Password</label>
                 <input required type="password" className="form-control" name="password" value={password} onChange={(e) => setPassword(e.target.value)}  placeholder="Enter password" />
             </div>
-
+            {error}
             <button type="submit" className="btn btn-primary btn-block">Login</button>
             <p className="forgot-password text-right">
                 Not registered? <Link to="register">Register Here</Link>
