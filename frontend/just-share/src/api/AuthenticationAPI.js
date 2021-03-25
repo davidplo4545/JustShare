@@ -52,14 +52,14 @@ export const getFriendInvites = (userToken) =>{
 }
 
 // Should replace /users endpoint with /people ?
-export const getAllFriends = (userToken) =>{
-    axios.get(domain + '/users',{
+export const getFriendRecommendations = async (userToken, setFriends) =>{
+    await axios.get(domain + '/users',{
         headers:{
             'Authorization': `token ${userToken}`
         }
     })
     .then((res) =>{
-        
+        setFriends(res.data);
     })
 }
 

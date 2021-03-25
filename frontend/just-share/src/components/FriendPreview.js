@@ -3,7 +3,7 @@ import React, { Component } from 'react'
 const FriendPreview = ({previewedFriend}) =>{
     return (
         <div className="friend-preview">
-            {previewedFriend ? <h1>You have selected {previewedFriend.firstName}</h1>
+            {previewedFriend ? <h1>You have selected {previewedFriend.profile.first_name}</h1>
             :
             <h1>No friend selected</h1>
             }

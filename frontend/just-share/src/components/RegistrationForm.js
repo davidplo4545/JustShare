@@ -1,7 +1,7 @@
 import React, {useState, useContext} from 'react'
 import { Link } from "react-router-dom";
 import {userRegister} from '../api/AuthenticationAPI.js'
-import {TokenContext} from '../hooks/TokenContext'
+import {UserContext} from '../hooks/UserContext'
 
 const RegistrationForm = () =>{
 
@@ -9,7 +9,7 @@ const RegistrationForm = () =>{
     const [firstName, setFirstName] = useState("")
     const [lastName, setLastName] = useState("")
     const [password, setPassword] = useState("")
-    const {token, setToken} = useContext(TokenContext)
+    const {token, setToken} = useContext(UserContext)
     const [error, setError] = useState("")
 
 

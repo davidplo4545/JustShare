@@ -1,11 +1,11 @@
 import React, {useState, useContext} from 'react'
 import LoginForm from '../components/LoginForm'
 import '../components/login.css'
-import {TokenContext} from '../hooks/TokenContext'
+import {UserContext} from '../hooks/UserContext'
 import { Redirect } from 'react-router'
 
 const LoginPage = (props) => {
-  const {token, setToken} = useContext(TokenContext)
+  const {token, setToken} = useContext(UserContext)
 
   if(token) return <Redirect to="/home" />;
 

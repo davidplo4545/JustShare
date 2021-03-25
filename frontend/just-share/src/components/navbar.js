@@ -1,13 +1,15 @@
 import React, {useContext} from 'react';
 import { Navbar, Nav, NavDropdown } from 'react-bootstrap';
 import { Link, Redirect } from "react-router-dom";
-import {TokenContext} from '../hooks/TokenContext'
+import {UserContext} from '../hooks/UserContext'
 import {userLogout} from '../api/AuthenticationAPI.js'
 const NavbarMenu = () => {
-    const {token, setToken} = useContext(TokenContext)
+    const user = useContext(UserContext)
+
+    console.log(user);
 
     const onLogout = () => {
-        userLogout(token, setToken)
+        userLogout(user.token,user.setToken)
         return <Redirect to="/home" />;
     }
     return (
@@ -18,7 +20,7 @@ const NavbarMenu = () => {
                     <Navbar.Toggle aria-controls="basic-navbar-nav" />
                 </div>
                 
-                    {token == null ?
+                    {user.token == null ?
                         <Navbar.Collapse id="basic-navbar-nav"> 
                             <Nav className="mr-auto">
                                 <Nav.Link as={Link} to='/'>Home</Nav.Link>

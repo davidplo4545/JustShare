@@ -1,10 +1,10 @@
 import React, {useState, useContext} from 'react'
 import { Link, useHistory, Redirect } from "react-router-dom";
 import {userLogin} from '../api/AuthenticationAPI.js'
-import {TokenContext} from '../hooks/TokenContext'
+import {UserContext} from '../hooks/UserContext'
 
 const LoginForm = () =>{
-    const {token, setToken} = useContext(TokenContext)
+    const {token, setToken} = useContext(UserContext)
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("")

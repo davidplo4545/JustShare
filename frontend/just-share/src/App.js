@@ -9,7 +9,7 @@ import RegisterPage from './pages/Register.js'
 import HomePage from './pages/Home'
 import FriendsPage from './pages/Friends.js'
 import ProfilePage from './pages/Profile.js'
-import {TokenContext} from './hooks/TokenContext'
+import {UserContext} from './hooks/UserContext'
 import useToken from './hooks/useToken.js'
 
 function getToken(){
@@ -17,10 +17,11 @@ function getToken(){
 }
 function App() {
   const {token,setToken} = useToken();
+  const {user, setUser} = useState({})
 
   return (
     <div className="App">
-      <TokenContext.Provider value={{token, setToken}}>
+      <UserContext.Provider value={{token, user, setToken, setUser}}>
         <header className="App-header">
               <NavbarMenu token={token}/>
         </header>
@@ -43,8 +44,8 @@ function App() {
             </Route>
           </Switch> 
         </main>
-        <footer className="footer">Footer</footer>
-      </TokenContext.Provider>
+        {/* <footer className="footer">Footer</footer> */}
+      </UserContext.Provider>
     </div>
   );
 }
