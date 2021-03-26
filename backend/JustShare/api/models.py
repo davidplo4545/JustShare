@@ -37,8 +37,22 @@ class UserProfile(models.Model):
     def __str__(self):
         return f"{self.first_name} {self.last_name}"
 
-    def friends(self):
+    def friendships(self):
         return Friendship.objects.filter(Q(creator=self.user) | Q(friend=self.user))
+
+    def friends(self, is_pending):
+        if is_pending:
+            friendships = self.friendships().filter(status="PENDING")
+        else:
+            friendships = self.friendships()
+        friends_ids = []
+        for friendship in list(friendships):
+            if friendship.creator.id != self.user.id:
+                friends_ids.append(friendship.creator.id)
+            else:
+                friends_ids.append(friendship.friend.id)
+        friends = CustomUser.objects.filter(pk__in=friends_ids)
+        return friends
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"

@@ -46,7 +46,7 @@ class UserSerializer(serializers.ModelSerializer):
         result_json = super(UserSerializer, self).to_representation(instance)
         result_json["friends"] = []
 
-        for friendship in instance.profile.friends():
+        for friendship in instance.profile.friendships():
             friendship_data = FriendshipSerializer(friendship)
             result_json["friends"].append(friendship_data.data)
         return result_json

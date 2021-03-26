@@ -19,6 +19,12 @@ function App() {
   const {token,setToken} = useToken();
   const {user, setUser} = useState({})
 
+  // Similar to componentDidMount and componentDidUpdate:
+  useEffect(() => {
+    
+  }, []);
+
+
   return (
     <div className="App">
       <UserContext.Provider value={{token, user, setToken, setUser}}>

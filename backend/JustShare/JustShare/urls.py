@@ -43,6 +43,7 @@ urlpatterns = [
     path("api/invites/", views.CollectionInvitesView.as_view()),
     path("api/", include(router.urls)),
     path("api/", include(users_router.urls)),
+    path("api/people", views.FriendsList.as_view()),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

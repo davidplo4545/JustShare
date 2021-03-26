@@ -12,7 +12,7 @@ from .models import (
     STATUS_CHOICES,
 )
 from rest_framework import permissions
-from rest_framework.generics import CreateAPIView
+from rest_framework import generics
 from rest_framework.decorators import action
 from rest_framework.authtoken.models import Token
 from rest_framework import status, viewsets, serializers
@@ -36,18 +36,44 @@ from .serializers import (
 from .permissions import FriendshipPermission, PhotoPermission, IsCollectionMember
 
 
+class FriendsList(generics.ListAPIView):
+    queryset = CustomUser.objects.all().order_by("date_joined")
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # query_params = self.request.query_params["q"]
+        user = self.request.user
+        friends = self.request.user.profile.friends(True)
+        print(friends)
+        return friends
+
+    def list(self, request):
+        queryset = self.get_queryset()
+        serializer = UserSerializer(queryset, many=True, context={"request": request})
+        # print(queryset)
+        return Response(serializer.data)
+
+
 class UserViewSet(viewsets.ModelViewSet):
     queryset = CustomUser.objects.all().order_by("date_joined")
     serializer_class = UserSerializer
     http_method_names = ["get"]
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, format=None):
-        serializer = UserSerializer(
-            data=request.data, context={"request": request})
+        serializer = UserSerializer(data=request.data, context={"request": request})
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @action(detail=False, methods=["get"])
+    def me(self, request, pk=None):
+        serializer = self.serializer_class(
+            self.request.user, context={"request": request}
+        )
+        return Response(serializer.data)
 
 
 class AuthenticationViewSet(viewsets.GenericViewSet):
@@ -84,8 +110,7 @@ class AuthenticationViewSet(viewsets.GenericViewSet):
         print(request.data)
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
-            user = CustomUser.objects.get(
-                email=serializer.validated_data["email"])
+            user = CustomUser.objects.get(email=serializer.validated_data["email"])
             token, created = Token.objects.get_or_create(user=user)
             response = {
                 "email": user.email,
@@ -116,7 +141,7 @@ class FriendshipViewSet(viewsets.ModelViewSet):
     permission_classes = [FriendshipPermission]
 
     def get_queryset(self):
-        return UserProfile.objects.get(user__pk=self.kwargs["user_pk"]).friends()
+        return UserProfile.objects.get(user__pk=self.kwargs["user_pk"]).friendships()
 
     def get_object(self):
         obj = get_object_or_404(Friendship, pk=self.kwargs["pk"])
@@ -366,8 +391,7 @@ class CollectionInvitesView(generics.ListAPIView):
 
     def get_queryset(self):
         user = self.request.user
-        queryset = self.model.objects.filter(
-            Q(to_user=user) | Q(from_user=user))
+        queryset = self.model.objects.filter(Q(to_user=user) | Q(from_user=user))
         if queryset:
             return queryset.order_by("-created_at")
         raise NotFound()
