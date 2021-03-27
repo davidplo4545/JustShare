@@ -19,6 +19,9 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ["id", "first_name", "last_name"]
 
 
+# class FriendField(serializers.Field):
+
+
 class FriendshipSerializer(serializers.ModelSerializer):
     creator = serializers.PrimaryKeyRelatedField(read_only=True)
     friend = serializers.PrimaryKeyRelatedField(read_only=True)
@@ -34,6 +37,31 @@ class FriendshipSerializer(serializers.ModelSerializer):
         model = Friendship
         fields = ["id", "creator", "friend", "status"]
 
+    def to_representation(self, instance):
+        result_json = super(FriendshipSerializer, self).to_representation(instance)
+        user_id = self.context["current_user_id"]
+
+        friend = result_json.pop("friend")
+        creator = result_json.pop("creator")
+        # setting the 'friend' key to be different from the
+        # authenticated user, remove 'creator key
+        if str(user_id) == str(creator):
+            print("here")
+            result_json.update({"friend": friend})
+        else:
+            result_json.update({"friend": creator})
+        print(f"creator {creator}")
+        print(f"friend {(friend)}")
+        print(f"user {type(user_id)}")
+        return result_json
+
+    #     result_json["friends"] = []
+
+    #     for friendship in instance.profile.friendships():
+    #         friendship_data = FriendshipSerializer(friendship)
+    #         result_json["friends"].append(friendship_data.data)
+    #     return result_json
+
 
 class UserSerializer(serializers.ModelSerializer):
     profile = ProfileSerializer()
@@ -47,7 +75,13 @@ class UserSerializer(serializers.ModelSerializer):
         result_json["friends"] = []
 
         for friendship in instance.profile.friendships():
-            friendship_data = FriendshipSerializer(friendship)
+            friendship_data = FriendshipSerializer(
+                friendship,
+                context={
+                    "request": self.context["request"],
+                    "current_user_id": instance.id,
+                },
+            )
             result_json["friends"].append(friendship_data.data)
         return result_json
 

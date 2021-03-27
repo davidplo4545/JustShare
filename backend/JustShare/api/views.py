@@ -45,13 +45,11 @@ class FriendsList(generics.ListAPIView):
         # query_params = self.request.query_params["q"]
         user = self.request.user
         friends = self.request.user.profile.friends(True)
-        print(friends)
         return friends
 
     def list(self, request):
         queryset = self.get_queryset()
         serializer = UserSerializer(queryset, many=True, context={"request": request})
-        # print(queryset)
         return Response(serializer.data)
 
 
@@ -155,7 +153,11 @@ class FriendshipViewSet(viewsets.ModelViewSet):
             return Response(
                 {"status": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
             )
-        serializer = self.serializer_class(friends_queryset, many=True)
+        serializer = self.serializer_class(
+            friends_queryset,
+            many=True,
+            context={"request": request, "current_user_id": user_pk},
+        )
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     def create(self, request, pk=None, user_pk=None):
@@ -204,7 +206,7 @@ class FriendshipViewSet(viewsets.ModelViewSet):
             except:
                 pass
 
-            serializer = FriendshipSerializer(data={})
+            serializer = FriendshipSerializer(data={}, context={"request": request})
             if serializer.is_valid():
                 self.perform_create(serializer)
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
