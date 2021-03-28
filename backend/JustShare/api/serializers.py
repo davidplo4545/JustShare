@@ -19,7 +19,28 @@ class ProfileSerializer(serializers.ModelSerializer):
         fields = ["id", "first_name", "last_name"]
 
 
-# class FriendField(serializers.Field):
+class UserSerializer(serializers.ModelSerializer):
+    profile = ProfileSerializer()
+
+    class Meta:
+        model = CustomUser
+        fields = ["url", "email", "date_joined", "profile"]
+
+    # - MABYE ADD LATER
+    def to_representation(self, instance):
+        result_json = super(UserSerializer, self).to_representation(instance)
+        # result_json["friends"] = []
+
+        # for friendship in instance.profile.friendships():
+        #     friendship_data = FriendshipSerializer(
+        #         friendship,
+        #         context={
+        #             "request": self.context["request"],
+        #             "current_user_id": instance.id,
+        #         },
+        #     )
+        #     result_json["friends"].append(friendship_data.data)
+        return result_json
 
 
 class FriendshipSerializer(serializers.ModelSerializer):
@@ -40,19 +61,22 @@ class FriendshipSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         result_json = super(FriendshipSerializer, self).to_representation(instance)
         user_id = self.context["current_user_id"]
-
         friend = result_json.pop("friend")
         creator = result_json.pop("creator")
         # setting the 'friend' key to be different from the
         # authenticated user, remove 'creator key
         if str(user_id) == str(creator):
-            print("here")
-            result_json.update({"friend": friend})
+            friend_user_object = CustomUser.objects.get(id=friend)
+            serializer = UserSerializer(
+                friend_user_object, context={"request": self.context["request"]}
+            )
         else:
-            result_json.update({"friend": creator})
-        print(f"creator {creator}")
-        print(f"friend {(friend)}")
-        print(f"user {type(user_id)}")
+            friend_user_object = CustomUser.objects.get(id=creator)
+            serializer = UserSerializer(
+                friend_user_object, context={"request": self.context["request"]}
+            )
+
+        result_json.update({"friend": serializer.data})
         return result_json
 
     #     result_json["friends"] = []
@@ -63,27 +87,9 @@ class FriendshipSerializer(serializers.ModelSerializer):
     #     return result_json
 
 
-class UserSerializer(serializers.ModelSerializer):
-    profile = ProfileSerializer()
-
-    class Meta:
-        model = CustomUser
-        fields = ["url", "email", "date_joined", "profile"]
-
-    def to_representation(self, instance):
-        result_json = super(UserSerializer, self).to_representation(instance)
-        result_json["friends"] = []
-
-        for friendship in instance.profile.friendships():
-            friendship_data = FriendshipSerializer(
-                friendship,
-                context={
-                    "request": self.context["request"],
-                    "current_user_id": instance.id,
-                },
-            )
-            result_json["friends"].append(friendship_data.data)
-        return result_json
+class FriendStatusSerializer(serializers.Serializer):
+    user = UserSerializer(read_only=True)
+    friendship_status = serializers.CharField(read_only=True)
 
 
 class RegisterSerializer(serializers.ModelSerializer):

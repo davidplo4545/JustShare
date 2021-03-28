@@ -23,6 +23,7 @@ from .serializers import (
     UserSerializer,
     ProfileSerializer,
     FriendshipSerializer,
+    FriendStatusSerializer,
     RegisterSerializer,
     LoginSerializer,
     PhotoSerializer,
@@ -44,12 +45,14 @@ class FriendsList(generics.ListAPIView):
     def get_queryset(self):
         # query_params = self.request.query_params["q"]
         user = self.request.user
-        friends = self.request.user.profile.friends(True)
+        friends = self.request.user.profile.friends()
         return friends
 
     def list(self, request):
         queryset = self.get_queryset()
-        serializer = UserSerializer(queryset, many=True, context={"request": request})
+        serializer = FriendStatusSerializer(
+            queryset, many=True, context={"request": request}
+        )
         return Response(serializer.data)
 
 
@@ -105,7 +108,6 @@ class AuthenticationViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=["post"])
     def login(self, request):
-        print(request.data)
         serializer = self.get_serializer_class()(data=request.data)
         if serializer.is_valid():
             user = CustomUser.objects.get(email=serializer.validated_data["email"])
@@ -153,12 +155,14 @@ class FriendshipViewSet(viewsets.ModelViewSet):
             return Response(
                 {"status": "User does not exist"}, status=status.HTTP_404_NOT_FOUND
             )
+
         serializer = self.serializer_class(
             friends_queryset,
             many=True,
             context={"request": request, "current_user_id": user_pk},
         )
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        print(f"data: {serializer.data}")
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def create(self, request, pk=None, user_pk=None):
         try:

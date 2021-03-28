@@ -38,21 +38,40 @@ class UserProfile(models.Model):
         return f"{self.first_name} {self.last_name}"
 
     def friendships(self):
-        return Friendship.objects.filter(Q(creator=self.user) | Q(friend=self.user))
+        return Friendship.objects.filter(
+            Q(creator=self.user) | Q(friend=self.user)
+        ).order_by("-status")
 
-    def friends(self, is_pending):
-        if is_pending:
-            friendships = self.friendships().filter(status="PENDING")
-        else:
-            friendships = self.friendships()
-        friends_ids = []
+    def friends(self):
+        """
+        Returns a list of dictionaries containing the user's friend and
+        their friendship status (Currently showing all other users as well)
+        Format:
+        [
+            {"user":user,"friendship_status":friendship_status},
+            {"user":user,"friendship_status":friendship_status}
+        ]
+        """
+        result_friends = []
+        friendships = self.friendships().order_by("-status")
+        # remove the requesting user from the list
+        friends_ids = [self.user.id]
         for friendship in list(friendships):
-            if friendship.creator.id != self.user.id:
-                friends_ids.append(friendship.creator.id)
-            else:
-                friends_ids.append(friendship.friend.id)
-        friends = CustomUser.objects.filter(pk__in=friends_ids)
-        return friends
+            # 'friend' is different from the user that sent the request
+            friend = (
+                friendship.creator
+                if friendship.creator != self.user
+                else friendship.friend
+            )
+            friends_ids.append(friend.id)
+            result_friends.append(
+                {"user": friend, "friendship_status": friendship.status}
+            )
+        other_users = CustomUser.objects.exclude(id__in=friends_ids)
+        for user in other_users:
+            result_friends.append({"user": user, "friendship_status": "NONE"})
+
+        return result_friends
 
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
